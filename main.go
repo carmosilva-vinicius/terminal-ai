@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/charmbracelet/glamour"
+	"log"
+	"os"
+
 	"github.com/google/generative-ai-go/genai"
 	"github.com/spf13/cobra"
 	"google.golang.org/api/option"
-	"log"
-	"os"
 )
 
 func printResponse(resp *genai.GenerateContentResponse) {
@@ -30,18 +31,20 @@ func main() {
 	var username string
 	var key string
 	var getConfig bool
+	var getHistory bool
 	type Config struct {
 		Username string `json:"username"`
 		Key      string `json:"key"`
 	}
 
-	configDir := "/home/vinico/.gg/"
+	home := os.Getenv("HOME")
+	configDir := home + "/.tai/"
 
 	var rootCommand = &cobra.Command{
 		Run: func(cmd *cobra.Command, args []string) {
 			// validations
 			if doubt == "" {
-				fmt.Println("You must supply a doubt.")
+				fmt.Println("You must select and option.")
 				return
 			}
 
@@ -54,6 +57,18 @@ func main() {
 			var config Config
 			if err := json.Unmarshal(data, &config); err != nil {
 				fmt.Println("Error parsing config file:", err)
+				return
+			}
+
+			if getHistory {
+				data, err := os.ReadFile(configDir + "lastquery.txt")
+				if err == nil {
+					doubt = string(data) + "\n" + doubt
+				}
+			}
+
+			if err := os.WriteFile(configDir+"lastquery.txt", []byte(doubt), 0644); err != nil {
+				fmt.Println("Error writing history conversation:", err)
 				return
 			}
 
@@ -140,6 +155,7 @@ func main() {
 		},
 	}
 
+	rootCommand.Flags().BoolVarP(&getHistory, "conversation", "c", false, "Include last query and answere in context of current query")
 	rootCommand.Flags().StringVarP(&doubt, "query", "q", "", "The question to be answred by AI")
 	configCommand.Flags().StringVarP(&username, "username", "u", "", "Name or nick for user.")
 	configCommand.Flags().StringVarP(&key, "key", "k", "", "API Key")
