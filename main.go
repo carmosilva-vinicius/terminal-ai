@@ -13,18 +13,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-func printResponse(resp *genai.GenerateContentResponse) {
-	for _, cand := range resp.Candidates {
-		if cand.Content != nil {
-			for _, part := range cand.Content.Parts {
-				partString := fmt.Sprintf("%v", part)
-				out, _ := glamour.Render(partString, "dark")
-				fmt.Println(out)
-			}
-		}
-	}
-	fmt.Println("---")
-}
 func main() {
 
 	var doubt string
@@ -67,11 +55,6 @@ func main() {
 				}
 			}
 
-			if err := os.WriteFile(configDir+"lastquery.txt", []byte(doubt), 0644); err != nil {
-				fmt.Println("Error writing history conversation:", err)
-				return
-			}
-
 			ctx := context.Background()
 			client, err := genai.NewClient(ctx, option.WithAPIKey(config.Key))
 			if err != nil {
@@ -86,7 +69,23 @@ func main() {
 				log.Fatal(err)
 			}
 
-			printResponse(resp)
+			for _, cand := range resp.Candidates {
+				if cand.Content != nil {
+					for _, part := range cand.Content.Parts {
+						partString := fmt.Sprintf("%v", part)
+						out, _ := glamour.Render(partString, "dark")
+						doubt = doubt + out
+						fmt.Println(out)
+					}
+				}
+			}
+			fmt.Println("---")
+
+			if err := os.WriteFile(configDir+"lastquery.txt", []byte(doubt), 0644); err != nil {
+				fmt.Println("Error writing history conversation:", err)
+				return
+			}
+
 		},
 	}
 
@@ -99,9 +98,9 @@ func main() {
 				data, err := os.ReadFile(configDir + "config.json")
 				if err != nil {
 					fmt.Println("Error reading config file:", err)
-					return
+				} else {
+					fmt.Println("Current configuration:", string(data))
 				}
-				fmt.Println("Current configuration:", string(data))
 			} else {
 				config := Config{
 					Username: username,
